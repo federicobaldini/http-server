@@ -1,4 +1,4 @@
-use super::method::Method;
+use super::method::{Method, MethodError};
 use std::convert::TryFrom;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
@@ -26,6 +26,8 @@ impl TryFrom<&[u8]> for Request {
     if protocol != "HTTP/1.1" {
       return Err(ParseError::InvalidProtocol);
     }
+
+    let method: Method = method.parse()?;
 
     unimplemented!();
   }
@@ -55,6 +57,12 @@ impl ParseError {
       Self::InvalidProtocol => "Invalid Protocol",
       Self::InvalidMethod => "Invalid Method",
     }
+  }
+}
+
+impl From<MethodError> for ParseError {
+  fn from(_: MethodError) -> Self {
+    Self::InvalidMethod
   }
 }
 
