@@ -1,6 +1,6 @@
 use crate::http::{Request, Response, StatusCode};
 use std::convert::TryFrom;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::TcpListener;
 
 pub struct Server {
@@ -30,7 +30,7 @@ impl Server {
                     StatusCode::Ok,
                     Some("<h1>COCONUT SERVER WORKS!</h1".to_string()),
                   );
-                  write!(stream, "{}", response);
+                  response.send(&mut stream);
                 }
                 Err(error) => {
                   println!("Failed to parse a request: {}", error);
