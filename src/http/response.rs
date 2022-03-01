@@ -1,6 +1,5 @@
 use super::StatusCode;
 use std::io::{Result as IoResult, Write};
-use std::net::TcpStream;
 
 #[derive(Debug)]
 pub struct Response {
