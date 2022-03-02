@@ -18,7 +18,7 @@ pub struct Request<'buf> {
 }
 
 impl<'buf> Request<'buf> {
-  pub fn ath(&self) -> &str {
+  pub fn path(&self) -> &str {
     &self.path
   }
 
