@@ -1,4 +1,5 @@
 use super::method::{Method, MethodError};
+use super::Headers;
 use super::QueryString;
 use std::convert::TryFrom;
 use std::error::Error;
@@ -11,8 +12,8 @@ pub struct Request<'buf> {
   path: &'buf str,
   query_string: Option<QueryString<'buf>>,
   method: Method,
+  headers: Headers<'buf>,
   /*
-  headers: String,
   body: String,
   */
 }
@@ -29,6 +30,10 @@ impl<'buf> Request<'buf> {
   pub fn method(&self) -> &Method {
     &self.method
   }
+
+  pub fn headers(&self) -> &Headers {
+    &self.headers
+  }
 }
 
 impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
@@ -40,6 +45,7 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
     let (method, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
     let (mut path, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
     let (protocol, _) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
+    let (header_string, _) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
 
     if protocol != "HTTP/1.1" {
       return Err(ParseError::InvalidProtocol);
@@ -53,10 +59,13 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
       path = &path[..i];
     }
 
+    let headers = Headers::from(header_string);
+
     Ok(Self {
       path,
       query_string,
       method,
+      headers,
     })
   }
 }
