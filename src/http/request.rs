@@ -44,8 +44,7 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
 
     let (method, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
     let (mut path, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
-    let (protocol, _) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
-    let (header_string, _) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
+    let (protocol, request) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
 
     if protocol != "HTTP/1.1" {
       return Err(ParseError::InvalidProtocol);
@@ -59,7 +58,7 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
       path = &path[..i];
     }
 
-    let headers = Headers::from(header_string);
+    let headers = Headers::from(request);
 
     Ok(Self {
       path,
@@ -72,8 +71,11 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
 
 fn get_next_word(request: &str) -> Option<(&str, &str)> {
   for (i, c) in request.chars().enumerate() {
-    if c == ' ' || c == '\r' || c == '\n' {
+    if c == ' ' {
       return Some((&request[..i], &request[i + 1..]));
+    }
+    if c == '\r' || c == '\n' {
+      return Some((&request[..i], &request[i + 2..]));
     }
   }
   None
