@@ -25,7 +25,7 @@ impl<'buf> From<&'buf str> for QueryString<'buf> {
       let mut key = sub_str;
       let mut val = "";
 
-      if let Some(i) = sub_str.find("=") {
+      if let Some(i) = sub_str.find('=') {
         key = &sub_str[..i];
         val = &sub_str[i + 1..];
       }
