@@ -14,10 +14,20 @@ impl<'buf> Headers<'buf> {
 impl<'buf> From<&'buf str> for Headers<'buf> {
   fn from(s: &'buf str) -> Self {
     let mut data = HashMap::new();
-    let mut key = "";
-    let mut val = "";
 
-    data.entry(key).or_insert(val);
+    for sub_str in s.split('\n') {
+      let mut key = "";
+      let mut val = "";
+
+      if let Some(i) = sub_str.find(' ') {
+        key = &sub_str[..i - 1];
+        val = &sub_str[i + 1..];
+      }
+
+      if key.chars().count() > 0 {
+        data.entry(key).or_insert(val);
+      }
+    }
 
     Headers { data }
   }
