@@ -1,6 +1,6 @@
 # http-server
 
-A simple http (1.1 version protocol) single thread server that provides HTML and JavaScript files, using Rust.
+A simple http (1.1 version protocol) single thread server that provides HTML, CSS and JavaScript files, using Rust.
 
 Credit: https://github.com/gavadinov and https://www.udemy.com/course/rust-fundamentals
 
