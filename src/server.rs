@@ -1,7 +1,7 @@
 use crate::http::{ParseError, Request, Response, StatusCode};
 use std::convert::TryFrom;
 use std::io::Read;
-use std::net::TcpListener;
+use std::net::{TcpListener};
 
 pub trait Handler {
   fn handle_request(&mut self, request: &Request) -> Response;
@@ -18,26 +18,35 @@ pub struct Server {
 
 impl Server {
   pub fn new(address: String) -> Self {
-    Self { address: address }
+    Self { address }
   }
+
+  // The run method starts the server and begins handling incoming connections
   pub fn run(self, mut handler: impl Handler) {
     println!("Listening on {}", self.address);
 
-    let listener = TcpListener::bind(&self.address).unwrap();
+    // Binds the TcpListener to the specified address
+    let listener: TcpListener = TcpListener::bind(&self.address).unwrap();
 
+    // Continuously listens for incoming connections
     loop {
       match listener.accept() {
+        // If a connection is successfully established
         Ok((mut stream, _)) => {
-          let mut buffer = [0; 2048];
+          // Buffer to hold incoming data
+          let mut buffer: [u8; 2048] = [0; 2048];
           match stream.read(&mut buffer) {
+             // If data is successfully read from the connection
             Ok(_) => {
               println!("Received a request: {}", String::from_utf8_lossy(&buffer));
-              let response = match Request::try_from(&buffer[..]) {
+              // Attempts to convert the received data into a Request struct
+              let response: Response = match Request::try_from(&buffer[..]) {
                 Ok(request) => handler.handle_request(&request),
                 Err(error) => handler.handle_bad_request(&error),
               };
-              if let Err(e) = response.send(&mut stream) {
-                println!("Failed to send a response: {}", e);
+              // Attempts to send the response back to the client
+              if let Err(error) = response.send(&mut stream) {
+                println!("Failed to send a response: {}", error);
               }
             }
             Err(error) => {
