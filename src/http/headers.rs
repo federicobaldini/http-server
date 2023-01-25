@@ -13,11 +13,11 @@ impl<'buf> Headers<'buf> {
 
 impl<'buf> From<&'buf str> for Headers<'buf> {
   fn from(s: &'buf str) -> Self {
-    let mut data = HashMap::new();
+    let mut data: HashMap<&str, &str> = HashMap::new();
 
     for sub_str in s.split('\n') {
-      let mut key = "";
-      let mut val = "";
+      let mut key: &str = "";
+      let mut val: &str = "";
 
       if let Some(i) = sub_str.find(' ') {
         key = &sub_str[..i - 1];
