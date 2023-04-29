@@ -1,7 +1,7 @@
 use crate::http::{ParseError, Request, Response, StatusCode};
 use std::convert::TryFrom;
 use std::io::Read;
-use std::net::{TcpListener};
+use std::net::TcpListener;
 
 pub trait Handler {
   fn handle_request(&mut self, request: &Request) -> Response;
@@ -36,7 +36,7 @@ impl Server {
           // Buffer to hold incoming data
           let mut buffer: [u8; 2048] = [0; 2048];
           match stream.read(&mut buffer) {
-             // If data is successfully read from the connection
+            // If data is successfully read from the connection
             Ok(_) => {
               println!("Received a request: {}", String::from_utf8_lossy(&buffer));
               // Attempts to convert the received data into a Request struct
