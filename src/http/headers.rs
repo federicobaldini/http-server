@@ -16,16 +16,8 @@ impl<'buf> From<&'buf str> for Headers<'buf> {
     let mut data: HashMap<&str, &str> = HashMap::new();
 
     for sub_str in s.split('\n') {
-      let mut key: &str = "";
-      let mut val: &str = "";
-
-      if let Some(i) = sub_str.find(' ') {
-        key = &sub_str[..i - 1];
-        val = &sub_str[i + 1..];
-      }
-
-      if key.chars().count() > 0 {
-        data.entry(key).or_insert(val);
+      if let Some((key, val)) = sub_str.split_once(':') {
+        data.entry(key.trim()).or_insert(val.trim());
       }
     }
 
@@ -60,5 +52,17 @@ mod tests {
   fn empty_string_gives_no_headers() {
     let h: Headers = Headers::from("");
     assert!(h.get("Host").is_none());
+  }
+
+  #[test]
+  fn header_with_multi_word_value_is_parsed_correctly() {
+    let h: Headers = Headers::from("Content-Type: text/html; charset=utf-8\n");
+    assert_eq!(h.get("Content-Type"), Some(&"text/html; charset=utf-8"));
+  }
+
+  #[test]
+  fn header_value_is_trimmed() {
+    let h: Headers = Headers::from("Accept:  application/json \n");
+    assert_eq!(h.get("Accept"), Some(&"application/json"));
   }
 }
