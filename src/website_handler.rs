@@ -40,10 +40,6 @@ impl Handler for WebsiteHandler {
     match request.method() {
       Method::GET => match request.path() {
         "/" => Response::new(StatusCode::Ok, self.read_file("index.html")),
-        "/test" => Response::new(
-          StatusCode::Ok,
-          Some("<h1>Path '/test' works!</h1>".to_string()),
-        ),
         // For all other request paths, try to read the file at the requested path
         path => match self.read_file(path) {
           Some(contents) => Response::new(StatusCode::Ok, Some(contents)),
