@@ -2,10 +2,131 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Test Title</title>
-    <link rel="stylesheet" href="style.css" />
+    <title>HTTP Server — Test Page</title>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <h1>Path '/' works!</h1>
+    <header>
+      <h1>HTTP Server</h1>
+      <p class="subtitle">Manual test page — all current server behaviours</p>
+    </header>
+
+    <main>
+      <!-- Static routes -->
+      <section>
+        <h2>Static routes</h2>
+        <p>Open each link in a new tab to verify the server responds with 200.</p>
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Path</th><th>Expected</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><a href="/" target="_blank">/</a></td>
+              <td>200 — serves index.html</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><a href="/style.css" target="_blank">/style.css</a></td>
+              <td>200 — serves style.css</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><a href="/informations.json" target="_blank">/informations.json</a></td>
+              <td>200 — serves informations.json</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Programmatic tests -->
+      <section>
+        <h2>Programmatic tests</h2>
+        <p>Each button sends a request via <code>fetch()</code> and displays the raw result below.</p>
+        <div class="test-grid">
+          <div class="test-card">
+            <div class="test-meta">
+              <span class="badge get">GET</span>
+              <code>/missing</code>
+            </div>
+            <p>File that does not exist — expects <strong>404</strong>.</p>
+            <button onclick="runTest('GET', '/missing', 'r1')">Run</button>
+            <pre id="r1" class="result"></pre>
+          </div>
+
+          <div class="test-card">
+            <div class="test-meta">
+              <span class="badge post">POST</span>
+              <code>/</code>
+            </div>
+            <p>Non-GET method — expects <strong>404</strong>.</p>
+            <button onclick="runTest('POST', '/', 'r2')">Run</button>
+            <pre id="r2" class="result"></pre>
+          </div>
+
+          <div class="test-card">
+            <div class="test-meta">
+              <span class="badge get">GET</span>
+              <code>/../../../etc/passwd</code>
+            </div>
+            <p>Directory traversal attempt — expects <strong>404</strong> (blocked).</p>
+            <button onclick="runTest('GET', '/../../../etc/passwd', 'r3')">Run</button>
+            <pre id="r3" class="result"></pre>
+          </div>
+
+          <div class="test-card">
+            <div class="test-meta">
+              <span class="badge put">PUT</span>
+              <code>/informations.json</code>
+            </div>
+            <p>Non-GET method on existing path — expects <strong>404</strong>.</p>
+            <button onclick="runTest('PUT', '/informations.json', 'r4')">Run</button>
+            <pre id="r4" class="result"></pre>
+          </div>
+        </div>
+
+        <div class="run-all">
+          <button onclick="runAll()">Run all tests</button>
+        </div>
+      </section>
+
+      <!-- Notes -->
+      <section>
+        <h2>Notes</h2>
+        <ul>
+          <li>The server only handles <strong>GET</strong> — all other methods return 404.</li>
+          <li>A malformed HTTP request returns <strong>400 Bad Request</strong> (testable via <code>curl</code> or <code>netcat</code>).</li>
+          <li>No <code>Content-Type</code> header is sent yet (TODO #12).</li>
+          <li>Buffer limit is 2048 bytes per request (TODO #19).</li>
+        </ul>
+      </section>
+    </main>
+
+    <script>
+      async function runTest(method, path, resultId) {
+        const el = document.getElementById(resultId);
+        el.textContent = "Sending…";
+        el.className = "result";
+        try {
+          const res = await fetch(path, { method });
+          const body = await res.text();
+          el.textContent =
+            "Status : " + res.status + " " + res.statusText + "\n" +
+            "Body   : " + (body.trim() || "(empty)");
+          el.className = "result " + (res.ok ? "ok" : "err");
+        } catch (e) {
+          el.textContent = "Error: " + e.message;
+          el.className = "result err";
+        }
+      }
+
+      function runAll() {
+        runTest("GET",  "/missing",              "r1");
+        runTest("POST", "/",                     "r2");
+        runTest("GET",  "/../../../etc/passwd",  "r3");
+        runTest("PUT",  "/informations.json",    "r4");
+      }
+    </script>
   </body>
 </html>

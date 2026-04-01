@@ -1,5 +1,7 @@
 {
-  "id": 1,
-  "test": "test-option",
-  "valid": true
+  "server": "rust-http-server",
+  "version": "0.1.0",
+  "address": "127.0.0.1:5000",
+  "supported_methods": ["GET"],
+  "buffer_size_bytes": 2048
 }
