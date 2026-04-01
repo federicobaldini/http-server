@@ -12,8 +12,17 @@ pub enum Value<'buf> {
 }
 
 impl<'buf> QueryString<'buf> {
-  pub fn get(&self, key: &str) -> Option<&Value> {
+  // Returns the raw Value enum for a key, giving access to both Single and Multiple variants
+  pub fn get_value(&self, key: &str) -> Option<&Value> {
     self.data.get(key)
+  }
+
+  // Returns the value directly as &str only for single-value keys; returns None for multi-value keys or missing keys
+  pub fn get(&self, key: &str) -> Option<&str> {
+    match self.data.get(key) {
+      Some(Value::Single(v)) => Some(v),
+      _ => None,
+    }
   }
 }
 
@@ -51,7 +60,7 @@ mod tests {
   #[test]
   fn single_value_parameter() {
     let qs: QueryString = QueryString::from("key=value");
-    match qs.get("key") {
+    match qs.get_value("key") {
       Some(Value::Single(v)) => assert_eq!(*v, "value"),
       _ => panic!("expected Single value"),
     }
@@ -60,7 +69,7 @@ mod tests {
   #[test]
   fn two_occurrences_of_same_key_become_multiple() {
     let qs: QueryString = QueryString::from("key=a&key=b");
-    match qs.get("key") {
+    match qs.get_value("key") {
       Some(Value::Multiple(v)) => {
         assert_eq!(v.len(), 2);
         assert!(v.contains(&"a"));
@@ -73,7 +82,7 @@ mod tests {
   #[test]
   fn three_occurrences_of_same_key() {
     let qs: QueryString = QueryString::from("key=a&key=b&key=c");
-    match qs.get("key") {
+    match qs.get_value("key") {
       Some(Value::Multiple(v)) => assert_eq!(v.len(), 3),
       _ => panic!("expected Multiple values"),
     }
@@ -82,7 +91,7 @@ mod tests {
   #[test]
   fn key_without_equals_has_empty_value() {
     let qs: QueryString = QueryString::from("key");
-    match qs.get("key") {
+    match qs.get_value("key") {
       Some(Value::Single(v)) => assert_eq!(*v, ""),
       _ => panic!("expected Single empty value"),
     }
@@ -91,13 +100,37 @@ mod tests {
   #[test]
   fn multiple_distinct_parameters() {
     let qs: QueryString = QueryString::from("a=1&b=2");
-    assert!(matches!(qs.get("a"), Some(Value::Single("1"))));
-    assert!(matches!(qs.get("b"), Some(Value::Single("2"))));
+    assert!(matches!(qs.get_value("a"), Some(Value::Single("1"))));
+    assert!(matches!(qs.get_value("b"), Some(Value::Single("2"))));
   }
 
   #[test]
   fn missing_key_returns_none() {
     let qs: QueryString = QueryString::from("key=value");
     assert!(qs.get("missing").is_none());
+  }
+
+  #[test]
+  fn get_returns_str_for_single_value() {
+    let qs: QueryString = QueryString::from("name=alice");
+    assert_eq!(qs.get("name"), Some("alice"));
+  }
+
+  #[test]
+  fn get_returns_none_for_multiple_values() {
+    let qs: QueryString = QueryString::from("key=a&key=b");
+    assert_eq!(qs.get("key"), None);
+  }
+
+  #[test]
+  fn get_returns_none_for_missing_key() {
+    let qs: QueryString = QueryString::from("key=value");
+    assert_eq!(qs.get("other"), None);
+  }
+
+  #[test]
+  fn get_returns_empty_str_for_key_without_value() {
+    let qs: QueryString = QueryString::from("key");
+    assert_eq!(qs.get("key"), Some(""));
   }
 }
