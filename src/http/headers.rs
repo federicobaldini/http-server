@@ -32,3 +32,33 @@ impl<'buf> From<&'buf str> for Headers<'buf> {
     Headers { data }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn single_header_is_parsed() {
+    let h: Headers = Headers::from("Host: localhost\n");
+    assert_eq!(h.get("Host"), Some(&"localhost"));
+  }
+
+  #[test]
+  fn multiple_headers_are_parsed() {
+    let h: Headers = Headers::from("Host: localhost\nContent-Type: text/html\n");
+    assert_eq!(h.get("Host"), Some(&"localhost"));
+    assert_eq!(h.get("Content-Type"), Some(&"text/html"));
+  }
+
+  #[test]
+  fn missing_header_returns_none() {
+    let h: Headers = Headers::from("Host: localhost\n");
+    assert!(h.get("Accept").is_none());
+  }
+
+  #[test]
+  fn empty_string_gives_no_headers() {
+    let h: Headers = Headers::from("");
+    assert!(h.get("Host").is_none());
+  }
+}

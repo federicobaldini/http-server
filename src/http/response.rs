@@ -30,3 +30,41 @@ impl Response {
     )
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn send_with_body_writes_correct_format() {
+    let response: Response = Response::new(StatusCode::Ok, Some("Hello".to_string()));
+    let mut buf: Vec<u8> = Vec::new();
+    response.send(&mut buf).unwrap();
+    assert_eq!(
+      String::from_utf8(buf).unwrap(),
+      "HTTP/1.1 200 Ok\r\n\r\nHello"
+    );
+  }
+
+  #[test]
+  fn send_without_body_writes_empty_body() {
+    let response: Response = Response::new(StatusCode::NotFound, None);
+    let mut buf: Vec<u8> = Vec::new();
+    response.send(&mut buf).unwrap();
+    assert_eq!(
+      String::from_utf8(buf).unwrap(),
+      "HTTP/1.1 404 Not Found\r\n\r\n"
+    );
+  }
+
+  #[test]
+  fn send_bad_request_with_body() {
+    let response: Response = Response::new(StatusCode::BadRequest, Some("bad".to_string()));
+    let mut buf: Vec<u8> = Vec::new();
+    response.send(&mut buf).unwrap();
+    assert_eq!(
+      String::from_utf8(buf).unwrap(),
+      "HTTP/1.1 400 Bad Request\r\n\r\nbad"
+    );
+  }
+}

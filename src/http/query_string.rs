@@ -43,3 +43,61 @@ impl<'buf> From<&'buf str> for QueryString<'buf> {
     QueryString { data }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn single_value_parameter() {
+    let qs: QueryString = QueryString::from("key=value");
+    match qs.get("key") {
+      Some(Value::Single(v)) => assert_eq!(*v, "value"),
+      _ => panic!("expected Single value"),
+    }
+  }
+
+  #[test]
+  fn two_occurrences_of_same_key_become_multiple() {
+    let qs: QueryString = QueryString::from("key=a&key=b");
+    match qs.get("key") {
+      Some(Value::Multiple(v)) => {
+        assert_eq!(v.len(), 2);
+        assert!(v.contains(&"a"));
+        assert!(v.contains(&"b"));
+      }
+      _ => panic!("expected Multiple values"),
+    }
+  }
+
+  #[test]
+  fn three_occurrences_of_same_key() {
+    let qs: QueryString = QueryString::from("key=a&key=b&key=c");
+    match qs.get("key") {
+      Some(Value::Multiple(v)) => assert_eq!(v.len(), 3),
+      _ => panic!("expected Multiple values"),
+    }
+  }
+
+  #[test]
+  fn key_without_equals_has_empty_value() {
+    let qs: QueryString = QueryString::from("key");
+    match qs.get("key") {
+      Some(Value::Single(v)) => assert_eq!(*v, ""),
+      _ => panic!("expected Single empty value"),
+    }
+  }
+
+  #[test]
+  fn multiple_distinct_parameters() {
+    let qs: QueryString = QueryString::from("a=1&b=2");
+    assert!(matches!(qs.get("a"), Some(Value::Single("1"))));
+    assert!(matches!(qs.get("b"), Some(Value::Single("2"))));
+  }
+
+  #[test]
+  fn missing_key_returns_none() {
+    let qs: QueryString = QueryString::from("key=value");
+    assert!(qs.get("missing").is_none());
+  }
+}

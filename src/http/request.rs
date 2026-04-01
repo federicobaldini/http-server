@@ -124,3 +124,98 @@ impl Debug for ParseError {
 }
 
 impl Error for ParseError {}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn valid_get_request_is_parsed() {
+    let raw: &[u8] = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert!(matches!(req.method(), Method::GET));
+    assert_eq!(req.path(), "/");
+    assert!(req.query_string().is_none());
+  }
+
+  #[test]
+  fn request_with_query_string_separates_path_and_params() {
+    let raw: &[u8] = b"GET /search?q=rust&page=1 HTTP/1.1\r\n\r\n";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert_eq!(req.path(), "/search");
+    assert!(req.query_string().is_some());
+  }
+
+  #[test]
+  fn invalid_utf8_returns_invalid_encoding() {
+    let raw: &[u8] = &[0xFF, 0xFE];
+    assert!(matches!(
+      Request::try_from(raw),
+      Err(ParseError::InvalidEncoding)
+    ));
+  }
+
+  #[test]
+  fn non_http11_protocol_returns_invalid_protocol() {
+    let raw: &[u8] = b"GET / HTTP/1.0\r\n\r\n";
+    assert!(matches!(
+      Request::try_from(raw),
+      Err(ParseError::InvalidProtocol)
+    ));
+  }
+
+  #[test]
+  fn unknown_method_returns_invalid_method() {
+    let raw: &[u8] = b"INVALID / HTTP/1.1\r\n\r\n";
+    assert!(matches!(
+      Request::try_from(raw),
+      Err(ParseError::InvalidMethod)
+    ));
+  }
+
+  #[test]
+  fn truncated_request_returns_invalid_request() {
+    let raw: &[u8] = b"GET";
+    assert!(matches!(
+      Request::try_from(raw),
+      Err(ParseError::InvalidRequest)
+    ));
+  }
+
+  #[test]
+  fn parse_error_display_messages() {
+    assert_eq!(format!("{}", ParseError::InvalidRequest), "Invalid Request");
+    assert_eq!(
+      format!("{}", ParseError::InvalidEncoding),
+      "Invalid Encoding"
+    );
+    assert_eq!(
+      format!("{}", ParseError::InvalidProtocol),
+      "Invalid Protocol"
+    );
+    assert_eq!(format!("{}", ParseError::InvalidMethod), "Invalid Method");
+  }
+
+  #[test]
+  fn get_next_word_splits_on_space() {
+    assert_eq!(get_next_word("hello world"), Some(("hello", "world")));
+  }
+
+  #[test]
+  fn get_next_word_splits_on_crlf() {
+    assert_eq!(
+      get_next_word("hello\r\nworld"),
+      Some(("hello", "world"))
+    );
+  }
+
+  #[test]
+  fn get_next_word_on_empty_string_returns_none() {
+    assert_eq!(get_next_word(""), None);
+  }
+
+  #[test]
+  fn get_next_word_with_no_delimiter_returns_none() {
+    assert_eq!(get_next_word("hello"), None);
+  }
+}
