@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -33,3 +34,9 @@ impl FromStr for Method {
 }
 
 pub struct MethodError;
+
+impl fmt::Display for MethodError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "Invalid or unrecognized HTTP method")
+  }
+}
