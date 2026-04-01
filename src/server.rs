@@ -26,7 +26,10 @@ impl Server {
     println!("Listening on {}", self.address);
 
     // Binds the TcpListener to the specified address
-    let listener: TcpListener = TcpListener::bind(&self.address).unwrap();
+    let listener: TcpListener = TcpListener::bind(&self.address).unwrap_or_else(|error| {
+      eprintln!("Failed to bind to {}: {}", self.address, error);
+      std::process::exit(1);
+    });
 
     // Maximum number of bytes read per request; larger requests will be truncated
     const BUFFER_SIZE: usize = 2048;
