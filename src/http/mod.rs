@@ -1,6 +1,6 @@
 pub use headers::Headers;
 pub use method::Method;
-pub use query_string::{QueryString, Value as QueryStringValue};
+pub use query_string::QueryString;
 pub use request::ParseError;
 pub use request::Request;
 pub use response::Response;
