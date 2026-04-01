@@ -1,21 +1,67 @@
-# http-server
+# HTTP Server
 
-A simple http (1.1 version protocol) single thread server that provides HTML, CSS and JavaScript files, using Rust.
+A single-threaded HTTP/1.1 server written from scratch in Rust, with no external dependencies. It serves static files from a configurable public directory and implements HTTP protocol parsing manually.
 
-Credit: https://github.com/gavadinov and https://www.udemy.com/course/rust-fundamentals
+## Features
+
+- HTTP/1.1 request parsing (method, path, query string, headers)
+- Static file serving (HTML, CSS, JSON) from a `public/` directory
+- Directory traversal attack prevention
+- Configurable public path via environment variable
+- Dedicated error types for parsing failures (`ParseError`)
+- Query string parsing with multi-value support per key
+
+## Project Structure
+
+```
+src/
+├── main.rs                  # Entry point, server startup
+├── server.rs                # TCP server and Handler trait
+├── website_handler.rs       # Static file handler
+└── http/
+    ├── mod.rs               # Module exports
+    ├── method.rs            # Method enum (GET, POST, PUT, ...)
+    ├── request.rs           # HTTP request parsing
+    ├── response.rs          # HTTP response building
+    ├── status_code.rs       # StatusCode enum with reason phrases
+    ├── query_string.rs      # Query string parsing
+    └── headers.rs           # HTTP headers parsing
+public/
+├── index.html
+├── style.css
+└── informations.json
+```
 
 ## Requirements
 
-To successful run this code, you need to have Rust and Cargo installed on your Machine.
+Rust and Cargo installed. Installation guide: https://www.rust-lang.org/learn/get-started
 
-For the instalation guide [click here](https://www.rust-lang.org/learn/get-started).
-
-## Getting started 
-
-Just clone the repo and use cargo to run the code as shown below 
+## Getting Started
 
 ```bash
-$ git clone https://github.com/federicobaldini/http-server
-$ cd http-server
-http-server->$ cargo run 
+git clone https://github.com/federicobaldini/http-server
+cd http-server
+cargo run
 ```
+
+The server starts on `127.0.0.1:5000`.
+
+## Configuration
+
+| Environment Variable | Description | Default |
+|---|---|---|
+| `PUBLIC_PATH` | Absolute path to the static files directory | `./public` |
+
+Example:
+
+```bash
+PUBLIC_PATH=/var/www/html cargo run
+```
+
+## Known Limitations
+
+- Single-threaded: handles one connection at a time
+- Fixed 2048-byte read buffer
+- No response headers (no `Content-Type`, no `Content-Length`)
+- Request body not supported (GET only)
+- No HTTPS support
