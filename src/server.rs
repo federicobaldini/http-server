@@ -28,13 +28,16 @@ impl Server {
     // Binds the TcpListener to the specified address
     let listener: TcpListener = TcpListener::bind(&self.address).unwrap();
 
+    // Maximum number of bytes read per request; larger requests will be truncated
+    const BUFFER_SIZE: usize = 2048;
+
     // Continuously listens for incoming connections
     loop {
       match listener.accept() {
         // If a connection is successfully established
         Ok((mut stream, _)) => {
           // Buffer to hold incoming data
-          let mut buffer: [u8; 2048] = [0; 2048];
+          let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
           match stream.read(&mut buffer) {
             // If data is successfully read from the connection
             Ok(_) => {
