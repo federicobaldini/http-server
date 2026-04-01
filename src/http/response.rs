@@ -2,6 +2,24 @@ use super::StatusCode;
 use std::collections::HashMap;
 use std::io::{Result as IoResult, Write};
 
+// Returns the MIME Content-Type for the given file path based on its extension.
+// Falls back to "application/octet-stream" for unknown extensions.
+pub fn content_type_for_path(path: &str) -> &'static str {
+  match path.rsplit_once('.') {
+    Some((_, "html")) => "text/html; charset=utf-8",
+    Some((_, "css")) => "text/css",
+    Some((_, "js")) => "application/javascript",
+    Some((_, "json")) => "application/json",
+    Some((_, "png")) => "image/png",
+    Some((_, "jpg")) | Some((_, "jpeg")) => "image/jpeg",
+    Some((_, "gif")) => "image/gif",
+    Some((_, "svg")) => "image/svg+xml",
+    Some((_, "ico")) => "image/x-icon",
+    Some((_, "txt")) => "text/plain; charset=utf-8",
+    _ => "application/octet-stream",
+  }
+}
+
 #[derive(Debug)]
 pub struct Response {
   status_code: StatusCode,
@@ -106,6 +124,33 @@ mod tests {
     let output: String = String::from_utf8(buf).unwrap();
     assert!(output.contains("Content-Type: text/html\r\n"));
     assert!(output.contains("X-Custom: value\r\n"));
+  }
+
+  #[test]
+  fn content_type_for_known_extensions() {
+    assert_eq!(content_type_for_path("index.html"), "text/html; charset=utf-8");
+    assert_eq!(content_type_for_path("style.css"), "text/css");
+    assert_eq!(content_type_for_path("app.js"), "application/javascript");
+    assert_eq!(content_type_for_path("data.json"), "application/json");
+    assert_eq!(content_type_for_path("image.png"), "image/png");
+    assert_eq!(content_type_for_path("photo.jpg"), "image/jpeg");
+    assert_eq!(content_type_for_path("photo.jpeg"), "image/jpeg");
+    assert_eq!(content_type_for_path("anim.gif"), "image/gif");
+    assert_eq!(content_type_for_path("icon.svg"), "image/svg+xml");
+    assert_eq!(content_type_for_path("favicon.ico"), "image/x-icon");
+    assert_eq!(content_type_for_path("readme.txt"), "text/plain; charset=utf-8");
+  }
+
+  #[test]
+  fn content_type_for_unknown_extension_is_octet_stream() {
+    assert_eq!(content_type_for_path("archive.zip"), "application/octet-stream");
+    assert_eq!(content_type_for_path("binary"), "application/octet-stream");
+  }
+
+  #[test]
+  fn content_type_uses_last_extension_in_path() {
+    assert_eq!(content_type_for_path("/static/main.min.js"), "application/javascript");
+    assert_eq!(content_type_for_path("/assets/theme.dark.css"), "text/css");
   }
 
   #[test]

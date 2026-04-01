@@ -1,4 +1,4 @@
-use super::http::{Method, Request, Response, StatusCode};
+use super::http::{content_type_for_path, Method, Request, Response, StatusCode};
 use super::server::Handler;
 use std::fs;
 
@@ -39,10 +39,24 @@ impl Handler for WebsiteHandler {
   fn handle_request(&mut self, request: &Request) -> Response {
     match request.method() {
       Method::GET => match request.path() {
-        "/" => Response::new(StatusCode::Ok, self.read_file("index.html")),
+        "/" => {
+          let mut response: Response = Response::new(StatusCode::Ok, self.read_file("index.html"));
+          response.set_header(
+            "Content-Type".to_string(),
+            content_type_for_path("index.html").to_string(),
+          );
+          response
+        }
         // For all other request paths, try to read the file at the requested path
         path => match self.read_file(path) {
-          Some(contents) => Response::new(StatusCode::Ok, Some(contents)),
+          Some(contents) => {
+            let mut response: Response = Response::new(StatusCode::Ok, Some(contents));
+            response.set_header(
+              "Content-Type".to_string(),
+              content_type_for_path(path).to_string(),
+            );
+            response
+          }
           None => Response::new(StatusCode::NotFound, None),
         },
       },

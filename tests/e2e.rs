@@ -1,4 +1,4 @@
-use rust_http_server::http::{Method, Request, Response, StatusCode};
+use rust_http_server::http::{content_type_for_path, Method, Request, Response, StatusCode};
 use rust_http_server::server::{Handler, Server};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -14,7 +14,15 @@ impl Handler for TestHandler {
   fn handle_request(&mut self, request: &Request) -> Response {
     match request.method() {
       Method::GET => match request.path() {
-        "/hello" => Response::new(StatusCode::Ok, Some("Hello, World!".to_string())),
+        "/hello" => {
+          let mut response: Response =
+            Response::new(StatusCode::Ok, Some("Hello, World!".to_string()));
+          response.set_header(
+            "Content-Type".to_string(),
+            content_type_for_path("/hello.html").to_string(),
+          );
+          response
+        }
         _ => Response::new(StatusCode::NotFound, None),
       },
       _ => Response::new(StatusCode::NotFound, None),
@@ -52,6 +60,7 @@ fn get_known_path_returns_200_with_body() {
   let resp: String = send_raw_request("GET /hello HTTP/1.1\r\nHost: localhost\r\n\r\n");
   assert!(resp.starts_with("HTTP/1.1 200 Ok"));
   assert!(resp.contains("Hello, World!"));
+  assert!(resp.contains("Content-Type: text/html; charset=utf-8"));
 }
 
 #[test]
