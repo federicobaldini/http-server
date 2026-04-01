@@ -55,6 +55,9 @@ impl Response {
       self.status_code.reason_phrase()
     )?;
 
+    // Always include Content-Length so clients know how many bytes to read
+    write!(stream, "Content-Length: {}\r\n", body.len())?;
+
     // Write each header on its own line
     for (key, value) in &self.headers {
       write!(stream, "{}: {}\r\n", key, value)?;
@@ -76,7 +79,7 @@ mod tests {
     response.send(&mut buf).unwrap();
     assert_eq!(
       String::from_utf8(buf).unwrap(),
-      "HTTP/1.1 200 Ok\r\n\r\nHello"
+      "HTTP/1.1 200 Ok\r\nContent-Length: 5\r\n\r\nHello"
     );
   }
 
@@ -87,7 +90,7 @@ mod tests {
     response.send(&mut buf).unwrap();
     assert_eq!(
       String::from_utf8(buf).unwrap(),
-      "HTTP/1.1 404 Not Found\r\n\r\n"
+      "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
     );
   }
 
@@ -98,7 +101,7 @@ mod tests {
     response.send(&mut buf).unwrap();
     assert_eq!(
       String::from_utf8(buf).unwrap(),
-      "HTTP/1.1 400 Bad Request\r\n\r\nbad"
+      "HTTP/1.1 400 Bad Request\r\nContent-Length: 3\r\n\r\nbad"
     );
   }
 
@@ -110,6 +113,7 @@ mod tests {
     response.send(&mut buf).unwrap();
     let output: String = String::from_utf8(buf).unwrap();
     assert!(output.starts_with("HTTP/1.1 200 Ok\r\n"));
+    assert!(output.contains("Content-Length: 2\r\n"));
     assert!(output.contains("Content-Type: text/plain\r\n"));
     assert!(output.ends_with("\r\nHi"));
   }
@@ -122,6 +126,7 @@ mod tests {
     let mut buf: Vec<u8> = Vec::new();
     response.send(&mut buf).unwrap();
     let output: String = String::from_utf8(buf).unwrap();
+    assert!(output.contains("Content-Length: 0\r\n"));
     assert!(output.contains("Content-Type: text/html\r\n"));
     assert!(output.contains("X-Custom: value\r\n"));
   }

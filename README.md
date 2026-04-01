@@ -62,6 +62,6 @@ PUBLIC_PATH=/var/www/html cargo run
 
 - Single-threaded: handles one connection at a time
 - Fixed 2048-byte read buffer
-- No response headers (no `Content-Type`, no `Content-Length`)
+- No keep-alive support (connection closes after each response)
 - Request body not supported (GET only)
 - No HTTPS support
