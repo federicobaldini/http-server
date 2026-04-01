@@ -7,7 +7,7 @@ pub trait Handler {
   fn handle_request(&mut self, request: &Request) -> Response;
 
   fn handle_bad_request(&mut self, error: &ParseError) -> Response {
-    println!("Failed to parse a request: {}", error);
+    eprintln!("Failed to parse a request: {}", error);
     Response::new(StatusCode::BadRequest, None)
   }
 }
@@ -49,16 +49,16 @@ impl Server {
               };
               // Attempts to send the response back to the client
               if let Err(error) = response.send(&mut stream) {
-                println!("Failed to send a response: {}", error);
+                eprintln!("Failed to send a response: {}", error);
               }
             }
             Err(error) => {
-              println!("Failed to read from connection: {}", error);
+              eprintln!("Failed to read from connection: {}", error);
             }
           }
         }
         Err(error) => {
-          println!("Failed to establish a connection: {}", error);
+          eprintln!("Failed to establish a connection: {}", error);
         }
       }
     }
