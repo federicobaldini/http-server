@@ -1,4 +1,5 @@
 use super::method::{Method, MethodError};
+use super::request_body::RequestBody;
 use super::Headers;
 use super::QueryString;
 use std::convert::TryFrom;
@@ -13,9 +14,7 @@ pub struct Request<'buf> {
   query_string: Option<QueryString<'buf>>,
   method: Method,
   headers: Headers<'buf>,
-  /*
-  body: String,
-  */
+  body: Option<RequestBody>,
 }
 
 impl<'buf> Request<'buf> {
@@ -34,17 +33,34 @@ impl<'buf> Request<'buf> {
   pub fn headers(&self) -> &Headers {
     &self.headers
   }
+
+  pub fn body(&self) -> Option<&RequestBody> {
+    self.body.as_ref()
+  }
 }
 
 impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
   type Error = ParseError;
 
   fn try_from(buf: &'buf [u8]) -> Result<Self, Self::Error> {
-    let request: &str = str::from_utf8(buf)?;
+    // Locate the blank line separating headers from body
+    let header_end: usize = match buf.windows(4).position(|w| w == b"\r\n\r\n") {
+      Some(i) => i,
+      // No separator found: surface encoding errors before InvalidRequest
+      None => {
+        str::from_utf8(buf)?;
+        return Err(ParseError::InvalidRequest);
+      }
+    };
 
-    let (method, request): (&str, &str) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
-    let (mut path, request): (&str, &str) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
-    let (protocol, request): (&str, &str) = get_next_word(request).ok_or(ParseError::InvalidRequest)?;
+    // Include the \r\n that terminates the last header line (first two bytes of \r\n\r\n)
+    // so get_next_word can find the delimiter after the protocol token
+    let header_section: &str = str::from_utf8(&buf[..header_end + 2])?;
+    let body_bytes: &[u8] = &buf[header_end + 4..];
+
+    let (method, rest): (&str, &str) = get_next_word(header_section).ok_or(ParseError::InvalidRequest)?;
+    let (mut path, rest): (&str, &str) = get_next_word(rest).ok_or(ParseError::InvalidRequest)?;
+    let (protocol, rest): (&str, &str) = get_next_word(rest).ok_or(ParseError::InvalidRequest)?;
 
     if protocol != "HTTP/1.1" {
       return Err(ParseError::InvalidProtocol);
@@ -58,13 +74,36 @@ impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
       path = &path[..i];
     }
 
-    let headers = Headers::from(request);
+    let headers: Headers = Headers::from(rest);
+
+    // Parse body using Content-Length; no Content-Length means no body
+    let content_length: usize = headers
+      .get("Content-Length")
+      .and_then(|v| v.parse::<usize>().ok())
+      .unwrap_or(0);
+
+    let body: Option<RequestBody> = if content_length == 0 || body_bytes.is_empty() {
+      None
+    } else {
+      let body_slice: &[u8] = &body_bytes[..content_length.min(body_bytes.len())];
+      let content_type: &str = headers.get("Content-Type").copied().unwrap_or("");
+      // Treat well-known text formats as Text; everything else as Binary
+      if content_type.starts_with("text/")
+        || content_type.starts_with("application/json")
+        || content_type.starts_with("application/x-www-form-urlencoded")
+      {
+        Some(RequestBody::Text(str::from_utf8(body_slice)?.to_string()))
+      } else {
+        Some(RequestBody::Binary(body_slice.to_vec()))
+      }
+    };
 
     Ok(Self {
       path,
       query_string,
       method,
       headers,
+      body,
     })
   }
 }
@@ -217,5 +256,53 @@ mod tests {
   #[test]
   fn get_next_word_with_no_delimiter_returns_none() {
     assert_eq!(get_next_word("hello"), None);
+  }
+
+  #[test]
+  fn post_with_text_body_is_parsed() {
+    let raw: &[u8] =
+      b"POST /submit HTTP/1.1\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\nhello";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert!(matches!(req.method(), Method::POST));
+    assert_eq!(req.path(), "/submit");
+    assert_eq!(req.body(), Some(&RequestBody::Text("hello".to_string())));
+  }
+
+  #[test]
+  fn post_with_json_body_is_parsed_as_text() {
+    let raw: &[u8] =
+      b"POST /api HTTP/1.1\r\nContent-Type: application/json\r\nContent-Length: 15\r\n\r\n{\"key\":\"value\"}";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert_eq!(
+      req.body(),
+      Some(&RequestBody::Text("{\"key\":\"value\"}".to_string()))
+    );
+  }
+
+  #[test]
+  fn post_with_binary_body_is_parsed() {
+    let mut raw: Vec<u8> =
+      b"POST /upload HTTP/1.1\r\nContent-Type: application/octet-stream\r\nContent-Length: 3\r\n\r\n"
+        .to_vec();
+    raw.extend_from_slice(&[0xDE, 0xAD, 0xBE]);
+    let req: Request = Request::try_from(raw.as_slice()).unwrap();
+    assert_eq!(
+      req.body(),
+      Some(&RequestBody::Binary(vec![0xDE, 0xAD, 0xBE]))
+    );
+  }
+
+  #[test]
+  fn get_request_without_body_has_none_body() {
+    let raw: &[u8] = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert!(req.body().is_none());
+  }
+
+  #[test]
+  fn post_without_content_length_has_none_body() {
+    let raw: &[u8] = b"POST /submit HTTP/1.1\r\nContent-Type: text/plain\r\n\r\nhello";
+    let req: Request = Request::try_from(raw).unwrap();
+    assert!(req.body().is_none());
   }
 }
