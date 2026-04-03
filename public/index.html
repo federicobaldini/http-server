@@ -43,7 +43,7 @@
       <!-- Programmatic tests -->
       <section>
         <h2>Programmatic tests</h2>
-        <p>Each button sends a request via <code>fetch()</code> and displays the raw result below.</p>
+        <p>Each button sends a request via <code>fetch()</code> and displays status, headers, and body.</p>
         <div class="test-grid">
           <div class="test-card">
             <div class="test-meta">
@@ -51,7 +51,7 @@
               <code>/missing</code>
             </div>
             <p>File that does not exist — expects <strong>404</strong>.</p>
-            <button onclick="runTest('GET', '/missing', 'r1')">Run</button>
+            <button onclick="runTest('GET', '/missing', null, 'r1')">Run</button>
             <pre id="r1" class="result"></pre>
           </div>
 
@@ -60,8 +60,8 @@
               <span class="badge post">POST</span>
               <code>/</code>
             </div>
-            <p>Non-GET method — expects <strong>404</strong>.</p>
-            <button onclick="runTest('POST', '/', 'r2')">Run</button>
+            <p>Non-GET method — expects <strong>405 Method Not Allowed</strong>.</p>
+            <button onclick="runTest('POST', '/', null, 'r2')">Run</button>
             <pre id="r2" class="result"></pre>
           </div>
 
@@ -71,7 +71,7 @@
               <code>/../../../etc/passwd</code>
             </div>
             <p>Directory traversal attempt — expects <strong>404</strong> (blocked).</p>
-            <button onclick="runTest('GET', '/../../../etc/passwd', 'r3')">Run</button>
+            <button onclick="runTest('GET', '/../../../etc/passwd', null, 'r3')">Run</button>
             <pre id="r3" class="result"></pre>
           </div>
 
@@ -80,9 +80,19 @@
               <span class="badge put">PUT</span>
               <code>/informations.json</code>
             </div>
-            <p>Non-GET method on existing path — expects <strong>404</strong>.</p>
-            <button onclick="runTest('PUT', '/informations.json', 'r4')">Run</button>
+            <p>Non-GET method on existing path — expects <strong>405 Method Not Allowed</strong>.</p>
+            <button onclick="runTest('PUT', '/informations.json', null, 'r4')">Run</button>
             <pre id="r4" class="result"></pre>
+          </div>
+
+          <div class="test-card">
+            <div class="test-meta">
+              <span class="badge post">POST</span>
+              <code>/echo</code>
+            </div>
+            <p>POST with a JSON body — body is parsed server-side; expects <strong>405</strong> (handler is GET-only).</p>
+            <button onclick="runTest('POST', '/echo', JSON.stringify({hello:'world'}), 'r5')">Run</button>
+            <pre id="r5" class="result"></pre>
           </div>
         </div>
 
@@ -95,25 +105,36 @@
       <section>
         <h2>Notes</h2>
         <ul>
-          <li>The server only handles <strong>GET</strong> — all other methods return 404.</li>
+          <li>The server only handles <strong>GET</strong> — all other methods return <strong>405 Method Not Allowed</strong>.</li>
           <li>A malformed HTTP request returns <strong>400 Bad Request</strong> (testable via <code>curl</code> or <code>netcat</code>).</li>
-          <li>No <code>Content-Type</code> header is sent yet (TODO #12).</li>
-          <li>Buffer limit is 2048 bytes per request (TODO #19).</li>
+          <li>Every response includes <code>Content-Type</code> (auto-detected from file extension) and <code>Content-Length</code>.</li>
+          <li>Request bodies are parsed using <code>Content-Length</code> and classified as text or binary via <code>Content-Type</code>.</li>
+          <li>The read buffer grows dynamically — headers up to <strong>8 KB</strong>, body up to <strong>1 MB</strong>.</li>
+          <li>Bind address and port are configurable: <code>HOST=0.0.0.0 PORT=8080 cargo run</code>.</li>
         </ul>
       </section>
     </main>
 
     <script>
-      async function runTest(method, path, resultId) {
+      async function runTest(method, path, body, resultId) {
         const el = document.getElementById(resultId);
         el.textContent = "Sending…";
         el.className = "result";
         try {
-          const res = await fetch(path, { method });
-          const body = await res.text();
+          const opts = { method };
+          if (body != null) {
+            opts.headers = { "Content-Type": "application/json" };
+            opts.body = body;
+          }
+          const res = await fetch(path, opts);
+          const text = await res.text();
+          const contentType   = res.headers.get("content-type")   || "(absent)";
+          const contentLength = res.headers.get("content-length") || "(absent)";
           el.textContent =
-            "Status : " + res.status + " " + res.statusText + "\n" +
-            "Body   : " + (body.trim() || "(empty)");
+            "Status         : " + res.status + " " + res.statusText + "\n" +
+            "Content-Type   : " + contentType + "\n" +
+            "Content-Length : " + contentLength + "\n" +
+            "Body           : " + (text.trim() || "(empty)");
           el.className = "result " + (res.ok ? "ok" : "err");
         } catch (e) {
           el.textContent = "Error: " + e.message;
@@ -122,10 +143,11 @@
       }
 
       function runAll() {
-        runTest("GET",  "/missing",              "r1");
-        runTest("POST", "/",                     "r2");
-        runTest("GET",  "/../../../etc/passwd",  "r3");
-        runTest("PUT",  "/informations.json",    "r4");
+        runTest("GET",  "/missing",                          null,                       "r1");
+        runTest("POST", "/",                                 null,                       "r2");
+        runTest("GET",  "/../../../etc/passwd",              null,                       "r3");
+        runTest("PUT",  "/informations.json",                null,                       "r4");
+        runTest("POST", "/echo",                             JSON.stringify({hello:"world"}), "r5");
       }
     </script>
   </body>
