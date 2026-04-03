@@ -12,8 +12,9 @@ fn main() {
   // The actual public path is determined by checking for the presence of an environment variable named "PUBLIC_PATH"
   // If it exists, it is used as the public path. If it does not exist, the default path defined above is used instead.
   let public_path = env::var("PUBLIC_PATH").unwrap_or(default_path);
-  // The port is read from the PORT environment variable, defaulting to 5000
+  // The host and port are read from environment variables, with sensible defaults
+  let host: String = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
   let port: String = env::var("PORT").unwrap_or_else(|_| "5000".to_string());
-  let server: Server = Server::new(format!("127.0.0.1:{}", port));
+  let server: Server = Server::new(format!("{}:{}", host, port));
   server.run(WebsiteHandler::new(public_path));
 }

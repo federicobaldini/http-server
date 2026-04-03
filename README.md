@@ -51,12 +51,13 @@ The server starts on `127.0.0.1:5000`.
 | Environment Variable | Description | Default |
 |---|---|---|
 | `PUBLIC_PATH` | Absolute path to the static files directory | `./public` |
+| `HOST` | IP address the server binds to | `127.0.0.1` |
 | `PORT` | TCP port the server listens on | `5000` |
 
 Example:
 
 ```bash
-PUBLIC_PATH=/var/www/html PORT=8080 cargo run
+PUBLIC_PATH=/var/www/html HOST=0.0.0.0 PORT=8080 cargo run
 ```
 
 ## Known Limitations
