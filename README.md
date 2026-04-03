@@ -23,6 +23,7 @@ A single-threaded HTTP/1.1 server written from scratch in Rust. It serves static
 ```
 src/
 ├── main.rs                  # Entry point, server startup
+├── config.rs                # Config struct (env vars + .env file)
 ├── server.rs                # TCP server and Handler trait
 ├── website_handler.rs       # Static file handler
 └── http/
@@ -63,6 +64,11 @@ The server starts on `127.0.0.1:5000` by default.
 | `PUBLIC_PATH` | Absolute path to the static files directory | `./public` |
 | `HOST` | IP address the server binds to | `127.0.0.1` |
 | `PORT` | TCP port the server listens on | `5000` |
+| `MAX_HEADER_SIZE` | Max request header bytes | `8192` |
+| `MAX_BODY_SIZE` | Max request body bytes | `1048576` |
+| `READ_TIMEOUT_SECS` | Idle connection timeout in seconds | `5` |
+
+All variables can also be set in a `.env` file at the project root (loaded automatically via `dotenvy`).
 
 Example:
 

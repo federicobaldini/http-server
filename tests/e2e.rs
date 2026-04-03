@@ -1,3 +1,4 @@
+use rust_http_server::config::Config;
 use rust_http_server::http::{content_type_for_path, Method, Request, RequestBody, Response, StatusCode};
 use rust_http_server::server::{Handler, Server};
 use std::io::{Read, Write};
@@ -42,7 +43,12 @@ static SERVER_STARTED: OnceLock<()> = OnceLock::new();
 fn start_test_server() {
   SERVER_STARTED.get_or_init(|| {
     thread::spawn(|| {
-      Server::new(TEST_ADDR.to_string()).run(TestHandler);
+      Server::new(Config {
+        host: "127.0.0.1".to_string(),
+        port: "7979".to_string(),
+        ..Config::default()
+      })
+      .run(TestHandler);
     });
     // Give the server time to bind and start accepting connections
     thread::sleep(Duration::from_millis(100));

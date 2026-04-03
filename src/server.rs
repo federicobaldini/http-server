@@ -1,17 +1,12 @@
+use crate::config::Config;
 use crate::http::{ParseError, Request, Response, StatusCode};
 use std::convert::TryFrom;
 use std::io::{self, Read};
 use std::net::{TcpListener, TcpStream};
 use std::time::Duration;
 
-// Maximum number of bytes accepted for request headers; guards against header-flooding attacks
-const MAX_HEADER_SIZE: usize = 8 * 1024;
-// Maximum number of body bytes read per request; limits per-request memory usage
-const MAX_BODY_SIZE: usize = 1024 * 1024;
-// Size of each read chunk pulled from the TCP stream
+// Size of each read chunk pulled from the TCP stream; internal tuning constant
 const READ_CHUNK: usize = 4 * 1024;
-// Maximum time to wait for data from a connected client; prevents indefinitely blocked connections
-const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub trait Handler {
   fn handle_request(&mut self, request: &Request) -> Response;
@@ -24,18 +19,26 @@ pub trait Handler {
 
 pub struct Server {
   address: String,
+  max_header_size: usize,
+  max_body_size: usize,
+  read_timeout: Duration,
 }
 
 impl Server {
-  pub fn new(address: String) -> Self {
-    Self { address }
+  pub fn new(config: Config) -> Self {
+    Self {
+      address: format!("{}:{}", config.host, config.port),
+      max_header_size: config.max_header_size,
+      max_body_size: config.max_body_size,
+      read_timeout: Duration::from_secs(config.read_timeout_secs),
+    }
   }
 
   // Reads a complete HTTP request from the stream into a Vec<u8>.
   // Stops after headers + Content-Length body bytes have been received.
-  // Returns an error if the header section exceeds MAX_HEADER_SIZE.
-  // Body bytes beyond MAX_BODY_SIZE are silently capped.
-  fn read_request(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
+  // Returns an error if the header section exceeds max_header_size.
+  // Body bytes beyond max_body_size are silently capped.
+  fn read_request(&self, stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     let mut buf: Vec<u8> = Vec::new();
     let mut chunk: [u8; READ_CHUNK] = [0; READ_CHUNK];
 
@@ -47,9 +50,7 @@ impl Server {
       buf.extend_from_slice(&chunk[..n]);
 
       // Reject oversized headers before the blank line appears
-      if buf.len() > MAX_HEADER_SIZE
-        && !buf.windows(4).any(|w| w == b"\r\n\r\n")
-      {
+      if buf.len() > self.max_header_size && !buf.windows(4).any(|w| w == b"\r\n\r\n") {
         return Err(io::Error::new(
           io::ErrorKind::InvalidData,
           "request headers exceed size limit",
@@ -59,7 +60,7 @@ impl Server {
       if let Some(header_end) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
         // Extract Content-Length to know exactly how many body bytes to read
         let content_length: usize =
-          Self::extract_content_length(&buf[..header_end]).min(MAX_BODY_SIZE);
+          Self::extract_content_length(&buf[..header_end]).min(self.max_body_size);
         let total_expected: usize = header_end + 4 + content_length;
 
         // Keep reading until the full body has arrived or the stream closes
@@ -108,10 +109,10 @@ impl Server {
     loop {
       match listener.accept() {
         Ok((mut stream, _)) => {
-          if let Err(error) = stream.set_read_timeout(Some(READ_TIMEOUT)) {
+          if let Err(error) = stream.set_read_timeout(Some(self.read_timeout)) {
             eprintln!("Failed to set read timeout: {}", error);
           }
-          match Self::read_request(&mut stream) {
+          match self.read_request(&mut stream) {
             Ok(buf) => {
               println!("Received a request: {}", String::from_utf8_lossy(&buf));
               let response: Response = match Request::try_from(buf.as_slice()) {
