@@ -2,6 +2,7 @@ use crate::http::{ParseError, Request, Response, StatusCode};
 use std::convert::TryFrom;
 use std::io::{self, Read};
 use std::net::{TcpListener, TcpStream};
+use std::time::Duration;
 
 // Maximum number of bytes accepted for request headers; guards against header-flooding attacks
 const MAX_HEADER_SIZE: usize = 8 * 1024;
@@ -9,6 +10,8 @@ const MAX_HEADER_SIZE: usize = 8 * 1024;
 const MAX_BODY_SIZE: usize = 1024 * 1024;
 // Size of each read chunk pulled from the TCP stream
 const READ_CHUNK: usize = 4 * 1024;
+// Maximum time to wait for data from a connected client; prevents indefinitely blocked connections
+const READ_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub trait Handler {
   fn handle_request(&mut self, request: &Request) -> Response;
@@ -105,6 +108,9 @@ impl Server {
     loop {
       match listener.accept() {
         Ok((mut stream, _)) => {
+          if let Err(error) = stream.set_read_timeout(Some(READ_TIMEOUT)) {
+            eprintln!("Failed to set read timeout: {}", error);
+          }
           match Self::read_request(&mut stream) {
             Ok(buf) => {
               println!("Received a request: {}", String::from_utf8_lossy(&buf));
