@@ -1,4 +1,4 @@
-use rust_http_server::http::{content_type_for_path, Method, Request, Response, StatusCode};
+use rust_http_server::http::{content_type_for_path, Method, Request, RequestBody, Response, StatusCode};
 use rust_http_server::server::{Handler, Server};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -24,6 +24,13 @@ impl Handler for TestHandler {
           response
         }
         _ => Response::new(StatusCode::NotFound, None),
+      },
+      Method::POST => match request.path() {
+        "/echo" => match request.body() {
+          Some(RequestBody::Text(text)) => Response::new(StatusCode::Ok, Some(text.clone())),
+          _ => Response::new(StatusCode::Ok, None),
+        },
+        _ => Response::new(StatusCode::MethodNotAllowed, None),
       },
       _ => Response::new(StatusCode::MethodNotAllowed, None),
     }
@@ -61,6 +68,7 @@ fn get_known_path_returns_200_with_body() {
   assert!(resp.starts_with("HTTP/1.1 200 Ok"));
   assert!(resp.contains("Hello, World!"));
   assert!(resp.contains("Content-Type: text/html; charset=utf-8"));
+  assert!(resp.contains("Content-Length:"));
 }
 
 #[test]
@@ -83,4 +91,27 @@ fn non_get_method_returns_405() {
   start_test_server();
   let resp: String = send_raw_request("POST /hello HTTP/1.1\r\nHost: localhost\r\n\r\n");
   assert!(resp.starts_with("HTTP/1.1 405 Method Not Allowed"));
+}
+
+#[test]
+fn post_with_text_body_is_echoed_back() {
+  start_test_server();
+  let resp: String = send_raw_request(
+    "POST /echo HTTP/1.1\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\nhello",
+  );
+  assert!(resp.starts_with("HTTP/1.1 200 Ok"));
+  assert!(resp.ends_with("hello"));
+}
+
+#[test]
+fn request_larger_than_2048_bytes_is_handled() {
+  start_test_server();
+  // Header value of 3000 bytes makes the total request well over the old 2048-byte buffer limit
+  let padding: String = "a".repeat(3000);
+  let raw: String = format!(
+    "GET /hello HTTP/1.1\r\nHost: localhost\r\nX-Padding: {}\r\n\r\n",
+    padding
+  );
+  let resp: String = send_raw_request(&raw);
+  assert!(resp.starts_with("HTTP/1.1 200 Ok"));
 }
