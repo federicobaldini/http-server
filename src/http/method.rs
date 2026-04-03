@@ -1,5 +1,5 @@
-use std::fmt;
 use std::str::FromStr;
+use thiserror::Error;
 
 #[derive(Debug)]
 pub enum Method {
@@ -33,13 +33,9 @@ impl FromStr for Method {
   }
 }
 
+#[derive(Debug, Error)]
+#[error("Invalid or unrecognized HTTP method")]
 pub struct MethodError;
-
-impl fmt::Display for MethodError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "Invalid or unrecognized HTTP method")
-  }
-}
 
 #[cfg(test)]
 mod tests {
