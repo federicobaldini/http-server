@@ -11,6 +11,21 @@ impl WebsiteHandler {
     Self { public_path }
   }
 
+  // Builds a 404 response: uses public/404.html if present, otherwise an empty body
+  fn not_found_response(&self) -> Response {
+    match self.read_file("404.html") {
+      Some(contents) => {
+        let mut response: Response = Response::new(StatusCode::NotFound, Some(contents));
+        response.set_header(
+          "Content-Type".to_string(),
+          content_type_for_path("404.html").to_string(),
+        );
+        response
+      }
+      None => Response::new(StatusCode::NotFound, None),
+    }
+  }
+
   // The read_file method reads a file from the specified path and returns its contents
   fn read_file(&self, file_path: &str) -> Option<String> {
     // Creates a path by combining the public_path field of the struct with the file_path parameter
@@ -57,7 +72,7 @@ impl Handler for WebsiteHandler {
             );
             response
           }
-          None => Response::new(StatusCode::NotFound, None),
+          None => self.not_found_response(),
         },
       },
       _ => Response::new(StatusCode::MethodNotAllowed, None),
