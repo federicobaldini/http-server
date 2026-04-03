@@ -25,7 +25,7 @@ impl Handler for TestHandler {
         }
         _ => Response::new(StatusCode::NotFound, None),
       },
-      _ => Response::new(StatusCode::NotFound, None),
+      _ => Response::new(StatusCode::MethodNotAllowed, None),
     }
   }
 }
@@ -79,8 +79,8 @@ fn invalid_request_returns_400() {
 }
 
 #[test]
-fn non_get_method_returns_404() {
+fn non_get_method_returns_405() {
   start_test_server();
   let resp: String = send_raw_request("POST /hello HTTP/1.1\r\nHost: localhost\r\n\r\n");
-  assert!(resp.starts_with("HTTP/1.1 404 Not Found"));
+  assert!(resp.starts_with("HTTP/1.1 405 Method Not Allowed"));
 }

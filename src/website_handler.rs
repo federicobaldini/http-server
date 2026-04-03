@@ -60,7 +60,7 @@ impl Handler for WebsiteHandler {
           None => Response::new(StatusCode::NotFound, None),
         },
       },
-      _ => Response::new(StatusCode::NotFound, None),
+      _ => Response::new(StatusCode::MethodNotAllowed, None),
     }
   }
 }
